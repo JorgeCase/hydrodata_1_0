@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -59,6 +60,11 @@ class RequestsHttpClient(HttpClient):
         self._session.headers.update(
             {"User-Agent": "hydrodata/0.1 (ANA/INMET data downloader)"}
         )
+
+        token = os.getenv("ANA_API_TOKEN")
+        if token:
+            self._session.headers.update({"Authorization": f"Bearer {token}"})
+
         self._default_timeout = default_timeout
 
     def get(

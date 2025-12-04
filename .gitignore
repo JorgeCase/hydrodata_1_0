@@ -13,3 +13,8 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# shapes
+data/shapefiles/
+tests/token.txt
+

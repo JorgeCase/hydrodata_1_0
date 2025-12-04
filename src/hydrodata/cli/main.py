@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 from typing import Optional
+from pathlib import Path
 
 import typer
 
 from hydrodata import __version__
+from hydrodata.core.models import Station
 from hydrodata.logging_config import setup_logging
 from hydrodata.infrastructure.http_client import (
     HttpClient,
     RecordingHttpClient,
     RequestsHttpClient,
+)
+from hydrodata.infrastructure.spatial import (
+    load_aoi,
+    filter_stations_in_aoi
 )
 from hydrodata.providers.ana_client import ANAClient
 
@@ -105,3 +111,65 @@ def ana_download(
 
     for p in paths:
         typer.secho(f"Arquico salvo em: {p}", fg=typer.colors.GREEN)
+
+
+@app.command("spatial-test")
+def spatial_test(
+    shapefile: Path = typer.Option(
+        ...,
+        "--shapefile",
+        "-f",
+        exists=True,
+        readable=True,
+        resolve_path=True,
+        help="Caminho para o shapefile da área de interesse (AOI).",
+    ),
+):
+    """
+    Testa o carregamento de um shapefile e o filtro espacial de estações.
+
+    Este comando usa estações MOCK (valores de exemplo) apenas para
+    verificar se o pipeline geoespacial está funcionando.
+    """
+    typer.echo(f"Carregando AOI de: {shapefile}")
+    aoi_geom = load_aoi(shapefile)
+
+    # TODO: no futuro, vamos obter as estações reais via ANA/INMET.
+    # Por enquanto, estações de exemplo:
+    stations = [
+        Station(
+            code=1,
+            name="Estação Exemplo 1",
+            station_type="pluviometrica",
+            latitude=-6.90,
+            longitude=-36.20,
+            altitude=500.0,
+        ),
+        Station(
+            code=2,
+            name="Estação Exemplo 2",
+            station_type="fluviometrica",
+            latitude=-6.95,
+            longitude=-36.25,
+            altitude=480.0,
+        ),
+        Station(
+            code=3,
+            name="Estação Fora",
+            station_type="pluviometrica",
+            latitude=0.0,
+            longitude=0.0,
+            altitude=None,
+        ),
+    ]
+
+    typer.echo(f"Total de estações mock: {len(stations)}")
+
+    stations_in_aoi = filter_stations_in_aoi(stations, aoi_geom)
+
+    typer.echo(f"Estações dentro da AOI: {len(stations_in_aoi)}")
+    for st in stations_in_aoi:
+        typer.echo(
+            f"- {st.code} | {st.name} | {st.station_type} "
+            f"| ({st.latitude}, {st.longitude}) alt={st.altitude}"
+        )

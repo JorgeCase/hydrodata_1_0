@@ -14,13 +14,18 @@ logger = logging.getLogger("hydrodata.providers.ana")
 @dataclass
 class AnaClientConfig:
     """
-    Configurações de acesso à API/Serviço da ANA.
+    Configurações de acesso ao endpoint público da ANA para estações
+    convencionais (séries históricas).
 
-    Obs: Os valores de base_url e parâmetros ainda serão definidos
-    quando formos implementar o fluxo real baseado no HidroWeb.
+    Endpoint base (sem parâmetros):
+        http://www.snirh.gov.br/hidroweb/rest/api/documento/convencionais
+
+    Parâmetros principais:
+        - tipo: 1 = MDB (Acess), 2 = TXT, 3 = CSV
+        - documentos: lista de códigos de estações separados por ";"
     """
 
-    base_url: str = "https://exemplo.ana.gov.br/hidroweb/rest/api/documento"
+    base_url: str = "http://www.snirh.gov.br/hidroweb/rest/api/documento/convencionais"
     file_type: int = 3  # Ex.: 1=mdb, 2=txt, 3=csv (provavelmente irá permanecer só o csv)
     download_dir: Path = Path("data/ana/raw")
 
@@ -47,9 +52,16 @@ class ANAClient:
         station_codes: Iterable[int | str],
     ) -> List[Path]:
         """
-        Faz o download dos arquivos brutos de uma ou mais estações.
+        Faz o download dos arquivos brutos de uma ou mais estações
+        convencionais da ANA em formato ZIP.
 
-        Retorna uma lista com caminhos dos arquivos .zip salvos.
+        Cada chamada retorna um único ZIP contendo todas as estações pedidas,
+        mas, por clareza, retornamos uma lista com o caminho desse arquivo.
+
+        NOTA:
+            Este método usa o endpoint público do Hidroweb (sem autenticação),
+            que pode mudar ao longo do tempo. Em produção, a recomendação
+            da ANA é usar a API oficial HidroWebService (com cadastro).
 
         IMPORTANTE:
         Implementação ainda é esqueleto; vamos ajustar a URL e os
@@ -63,9 +75,14 @@ class ANAClient:
             "documentos": station_list
         }
 
-        logger.debug("Chamando ANA base_url=%s params=%s", self.config.base_url, params)
+        logger.debug(
+            "Chamando ANA base_url=%s params=%s",
+            self.config.base_url,
+            params,
+        )
 
-        # Por enquanto isso vai falhar, pois base_url é fictícia.
+        # Aqui usamos GET direto. Em R, às vezes faz-se um POST antes,
+        # mas na prática o download do ZIP pode ser feito via GET.
         response = self.http_client.get(self.config.base_url, params=params)
 
         zip_filename = f"ana_{station_list}.zip"
@@ -73,7 +90,7 @@ class ANAClient:
             content=response.content,
             target_dir=self.config.download_dir,
             filename_hint=zip_filename,
-            extract=False,
+            extract=False,  # Depois podemos adicionar um flag para extrair automaticamente
         )
 
         logger.info("Download concluído. Arquivo salvo em %s", zip_path)
